@@ -190,24 +190,8 @@ sub main {
       
       # parse headers before processing input
       if(!(scalar @headers)) {
-        throw("ERROR: No headers found in input file\n") unless scalar @raw_headers;
-        
-        # write headers to output
-        unless(defined($config->{count}) || defined($config->{list})) {
-          print $out_fh join("\n", @raw_headers);
-          print $out_fh "\n";
-        }
-        
-        # parse into data structures
-        parse_headers($config, \@raw_headers);
+        process_headers($config, \@raw_headers);
         @headers = @{$config->{headers} || $config->{col_headers}};
-        $config->{allowed_fields}->{$_} = 1 for (@{$config->{headers}}, @{$config->{col_headers}});
-        
-        if(defined($config->{list})) {
-          print "Available fields:\n\n";
-          print "$_\n" for sort keys %{$config->{allowed_fields}};
-          exit(0);
-        }
       }
       
       my $line = $_;
@@ -281,7 +265,35 @@ sub main {
     }
   }
   
+  # If there were no non-header lines in the input, we won't have processed yet.
+  if(!(scalar @headers)) {
+    process_headers($config, \@raw_headers);
+  }
+  
   print $out_fh "$count\n" if defined($config->{count});
+}
+
+sub process_headers {
+  my $config = shift;
+  my $raw_headers = shift;
+  
+  throw("ERROR: No headers found in input file\n") unless scalar @$raw_headers;
+  
+  # write headers to output
+  unless(defined($config->{count}) || defined($config->{list})) {
+    print $out_fh join("\n", @$raw_headers);
+    print $out_fh "\n";
+  }
+  
+  # parse into data structures
+  parse_headers($config, $raw_headers);
+  $config->{allowed_fields}->{$_} = 1 for (@{$config->{headers}}, @{$config->{col_headers}});
+  
+  if(defined($config->{list})) {
+    print "Available fields:\n\n";
+    print "$_\n" for sort keys %{$config->{allowed_fields}};
+    exit(0);
+  }
 }
 
 sub parse_headers {
